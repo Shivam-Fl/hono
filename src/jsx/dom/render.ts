@@ -363,6 +363,24 @@ const removeNode = (node: Node): void => {
   }
 }
 
+/**
+ * Prepare a node that was removed from the DOM (its effects were cleaned up) to be built again,
+ * e.g. children kept in `pC` while Suspense showed its fallback. Effects are forgotten so that they
+ * are mounted again, and the build is forced so that memoization does not skip it.
+ */
+const restoreNode = (node: Node): void => {
+  if (isNodeString(node)) {
+    return
+  }
+  if (typeof node.tag === 'function') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (node as any)[DOM_STASH][1][STASH_EFFECT]
+    node.a = false
+    node.f = true
+  }
+  node.vC?.forEach(restoreNode)
+}
+
 const apply = (node: NodeObject, container: Container, isNew: boolean): void => {
   node.c = container
   applyNodeObject(node, container, isNew)
@@ -432,11 +450,14 @@ const applyNodeObject = (node: NodeObject, container: Container, isNew: boolean)
         child.d = false
         el = child.e ||= document.createTextNode(child.t)
       } else {
+        const hasElement = !!child.e
         el = child.e ||= child.n
           ? (document.createElementNS(child.n, child.tag as string) as SVGElement | MathMLElement)
           : document.createElement(child.tag as string)
 
-        applyProps(el as HTMLElement, child.props, child.pP)
+        // A newly created element has no attributes yet, so all props must be applied even if
+        // they equal the previous props (e.g. children restored after Suspense suspended again).
+        applyProps(el as HTMLElement, child.props, hasElement ? child.pP : undefined)
         applyNodeObject(child, el as HTMLElement, isNewLocal)
         if (child.tag === 'select') {
           applySelectValue(el as HTMLSelectElement, child.props)
@@ -615,6 +636,9 @@ export const build = (context: Context, node: NodeObject, children?: Child[]): v
             }
             child = oldChild
           } else {
+            if (buildWithPreviousChildren) {
+              restoreNode(oldChild)
+            }
             const pP = (oldChild.pP = oldChild.props)
             oldChild.props = child.props
             oldChild.f ||= child.f || node.f

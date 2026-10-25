@@ -4,7 +4,7 @@ import { ErrorBoundary as ErrorBoundaryDom, Suspense as SuspenseDom, render } fr
 import { ErrorBoundary as ErrorBoundaryCommon, Suspense as SuspenseCommon } from '..' // for common
 // run tests by old style jsx default
 // hono/jsx/jsx-runtime and hono/jsx/dom/jsx-runtime are tested in their respective settings
-import { use, useState } from '../hooks'
+import { use, useEffect, useState } from '../hooks'
 
 runner('Common', SuspenseCommon, ErrorBoundaryCommon)
 runner('DOM', SuspenseDom, ErrorBoundaryDom)
@@ -107,6 +107,40 @@ function runner(
         await Promise.resolve()
         await Promise.resolve()
         expect(root.innerHTML).toBe('<div>2</div><button>Increment</button>')
+      })
+
+      it('restores attributes and effects when children suspend again', async () => {
+        const log: string[] = []
+        const Child = ({ text }: { text: string }) => {
+          useEffect(() => {
+            log.push('mount')
+            return () => log.push('unmount')
+          }, [])
+          return <p class='page'>{text}</p>
+        }
+        const Content = ({ promise }: { promise: Promise<string> }) => <Child text={use(promise)} />
+        const promises = [Promise.resolve('a'), Promise.resolve('b')]
+        const App = () => {
+          const [index, setIndex] = useState(0)
+          return (
+            <Suspense fallback={<span>loading</span>}>
+              <Content promise={promises[index]} />
+              <button onClick={() => setIndex(1)}>next</button>
+            </Suspense>
+          )
+        }
+        render(<App />, root)
+        for (let i = 0; i < 5; i++) {
+          await new Promise((resolve) => setTimeout(resolve))
+        }
+        expect(root.innerHTML).toBe('<p class="page">a</p><button>next</button>')
+        expect(log).toEqual(['mount'])
+        root.querySelector('button')?.click()
+        for (let i = 0; i < 5; i++) {
+          await new Promise((resolve) => setTimeout(resolve))
+        }
+        expect(root.innerHTML).toBe('<p class="page">b</p><button>next</button>')
+        expect(log).toEqual(['mount', 'unmount', 'mount'])
       })
 
       it('with use() update', async () => {
