@@ -86,6 +86,37 @@ describe('Streaming', () => {
     )
   })
 
+  it.each([
+    ['null', null, ''],
+    ['undefined', undefined, ''],
+    ['false', false, ''],
+    ['a number', 42, '42'],
+  ])('Suspense / async component returning %s', async (_, value, expected) => {
+    const Content = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      return value as any
+    }
+
+    const stream = renderToReadableStream(
+      <Suspense fallback={<p>Loading...</p>}>
+        <Content />
+      </Suspense>
+    )
+
+    const chunks = []
+    const textDecoder = new TextDecoder()
+    for await (const chunk of stream as any) {
+      chunks.push(textDecoder.decode(chunk))
+    }
+
+    expect(chunks[0]).toBe(
+      `<template id="H:${suspenseCounter}"></template><p>Loading...</p><!--/$-->`
+    )
+    expect(chunks[1]).toContain(
+      `<template data-hono-target="H:${suspenseCounter}">${expected}</template>`
+    )
+  })
+
   it('preserves callbacks in a streamed async component array', async () => {
     const phases: number[] = []
     const Content = async () => [
