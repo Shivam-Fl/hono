@@ -1,6 +1,6 @@
 import type { Params, Result, Router } from '../../router'
 import { METHOD_NAME_ALL, UnsupportedPathError } from '../../router'
-import { checkOptionalParameter } from '../../utils/url'
+import { checkOptionalParameter, escapeRegExp } from '../../utils/url'
 
 type RegExpMatchArrayWithIndices = RegExpMatchArray & { indices: [number, number][] }
 
@@ -98,7 +98,8 @@ export class LinearRouter<T> implements Router<T> {
                 // :label{pattern}
                 const openBracePos = name.indexOf('{')
                 const next = parts[j + 1]
-                const lookahead = next && next[1] !== ':' && next[1] !== '*' ? `(?=${next})` : ''
+                const lookahead =
+                  next && next[1] !== ':' && next[1] !== '*' ? `(?=${escapeRegExp(next)})` : ''
                 const pattern = name.slice(openBracePos + 1, -1) + lookahead
                 const restPath = path.slice(pos + 1)
                 const match = new RegExp(pattern, 'd').exec(restPath) as RegExpMatchArrayWithIndices
