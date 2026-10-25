@@ -23,7 +23,8 @@ export const clearCache = () => {
 // this function is exported for testing and should not be used by the user
 export const composeRef = <T>(
   ref: RefObject<T | null> | Function | undefined,
-  cb: (e: T) => void | (() => void)
+  cb: (e: T) => void | (() => void),
+  deps: unknown[] = []
 ): ((e: T) => () => void) => {
   return useMemo(
     () => (e: T) => {
@@ -49,7 +50,7 @@ export const composeRef = <T>(
         refCleanup?.()
       }
     },
-    [ref]
+    [ref, ...deps]
   )
 }
 
@@ -349,15 +350,19 @@ export const form: FC<
       }
       setState([null, true])
     },
-    []
+    [action]
   )
 
-  const ref = composeRef(props.ref, (el: HTMLFormElement) => {
-    el.addEventListener('submit', onSubmit)
-    return () => {
-      el.removeEventListener('submit', onSubmit)
-    }
-  })
+  const ref = composeRef(
+    props.ref,
+    (el: HTMLFormElement) => {
+      el.addEventListener('submit', onSubmit)
+      return () => {
+        el.removeEventListener('submit', onSubmit)
+      }
+    },
+    [onSubmit]
+  )
 
   const [data, isDirty] = state
   state[1] = false
