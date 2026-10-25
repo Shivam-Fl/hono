@@ -47,6 +47,9 @@ const replaceGroupMarks = (paths: string[], groups: [string, string][]): string[
   return paths
 }
 
+// Escape regex special characters so a static segment is matched literally
+const escapeRegExp = (str: string): string => str.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
+
 const patternCache: { [key: string]: Pattern } = {}
 export const getPattern = (label: string, next?: string): Pattern | null => {
   // *            => wildcard
@@ -64,7 +67,7 @@ export const getPattern = (label: string, next?: string): Pattern | null => {
       if (match[2]) {
         patternCache[cacheKey] =
           next && next[0] !== ':' && next[0] !== '*'
-            ? [cacheKey, match[1], new RegExp(`^${match[2]}(?=/${next})`)]
+            ? [cacheKey, match[1], new RegExp(`^${match[2]}(?=/${escapeRegExp(next)})`)]
             : [label, match[1], new RegExp(`^${match[2]}$`)]
       } else {
         patternCache[cacheKey] = [label, match[1], true]

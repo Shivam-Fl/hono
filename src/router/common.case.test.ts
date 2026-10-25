@@ -745,6 +745,24 @@ export const runTest = ({
       })
     })
 
+    describe('Capture regex pattern followed by a literal bracketed segment', () => {
+      beforeEach(() => {
+        router.add('GET', '/a/:id{[0-9]+}/[draft]', 'draft')
+      })
+
+      it('GET /a/42/[draft]', () => {
+        const res = match('GET', '/a/42/[draft]')
+        expect(res.length).toBe(1)
+        expect(res[0].handler).toEqual('draft')
+        expect(res[0].params['id']).toEqual('42')
+      })
+
+      it('GET /a/42/d should not match', () => {
+        const res = match('GET', '/a/42/d')
+        expect(res.length).toBe(0)
+      })
+    })
+
     describe('Capture regex pattern has trailing wildcard', () => {
       beforeEach(() => {
         router.add('GET', '/:dir{[a-z]+}/*/file.html', 'file.html')
