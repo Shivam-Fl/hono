@@ -123,6 +123,11 @@
       "import": "./dist/middleware/compress/index.js",
       "require": "./dist/cjs/middleware/compress/index.js"
     },
+    "./decompress": {
+      "types": "./dist/types/middleware/decompress/index.d.ts",
+      "import": "./dist/middleware/decompress/index.js",
+      "require": "./dist/cjs/middleware/decompress/index.js"
+    },
     "./context-storage": {
       "types": "./dist/types/middleware/context-storage/index.d.ts",
       "import": "./dist/middleware/context-storage/index.js",
@@ -473,6 +478,9 @@
       ],
       "compress": [
         "./dist/types/middleware/compress"
+      ],
+      "decompress": [
+        "./dist/types/middleware/decompress"
       ],
       "context-storage": [
         "./dist/types/middleware/context-storage"
