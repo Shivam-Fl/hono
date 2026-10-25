@@ -58,11 +58,11 @@ export type JSONParsed<
    * do not pass it.
    */
   TPath = never,
-> = [T] extends [never]
-  ? never
-  : IsOnPath<T, TPath> extends true
+> = T extends unknown // distribute, so each member of a union is checked against the path
+  ? IsOnPath<T, TPath> extends true
     ? JSONValue // a recursive type: stop at the type that is already being converted
     : JSONParsedInner<T, TError, TPath | T>
+  : never
 
 type IsOnPath<T, TPath> = true extends (TPath extends unknown ? Equal<T, TPath> : never)
   ? true
