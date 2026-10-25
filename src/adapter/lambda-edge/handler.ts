@@ -169,12 +169,18 @@ const createResult = async (res: Response): Promise<CloudFrontResult> => {
   const isBase64Encoded =
     isContentTypeBinary(res.headers.get('content-type') || '') ||
     (!!contentEncoding && !/^identity$/i.test(contentEncoding))
-  const body = isBase64Encoded ? encodeBase64(await res.arrayBuffer()) : await res.text()
+  // CloudFront answers 502 when a generated 204 result includes a `body`, so omit it.
+  const hasBody = res.status !== 204
+  const body = !hasBody
+    ? undefined
+    : isBase64Encoded
+      ? encodeBase64(await res.arrayBuffer())
+      : await res.text()
 
   return {
     status: res.status.toString(),
     headers: convertHeaders(res.headers),
-    body,
+    ...(hasBody && { body }),
     ...(isBase64Encoded && { bodyEncoding: 'base64' }),
   }
 }
