@@ -102,6 +102,18 @@ export const cors = (options?: CORSOptions): MiddlewareHandler => {
       c.res.headers.set(key, value)
     }
 
+    // Append a token to Vary unless it is already listed (case-insensitive) or Vary is "*".
+    function appendVary(token: string) {
+      const tokens = (c.res.headers.get('Vary') ?? '')
+        .split(',')
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean)
+      if (tokens.includes('*') || tokens.includes(token.toLowerCase())) {
+        return
+      }
+      c.res.headers.append('Vary', token)
+    }
+
     const allowOrigin = await findAllowOrigin(c.req.header('origin') || '', c)
     if (allowOrigin) {
       set('Access-Control-Allow-Origin', allowOrigin)
@@ -117,7 +129,7 @@ export const cors = (options?: CORSOptions): MiddlewareHandler => {
 
     if (c.req.method === 'OPTIONS') {
       if (opts.origin !== '*') {
-        c.res.headers.append('Vary', 'Origin')
+        appendVary('Origin')
       }
 
       if (opts.maxAge != null) {
@@ -141,7 +153,7 @@ export const cors = (options?: CORSOptions): MiddlewareHandler => {
       }
       if (headersStr) {
         set('Access-Control-Allow-Headers', headersStr)
-        c.res.headers.append('Vary', 'Access-Control-Request-Headers')
+        appendVary('Access-Control-Request-Headers')
       }
 
       c.res.headers.delete('Content-Length')
@@ -158,7 +170,7 @@ export const cors = (options?: CORSOptions): MiddlewareHandler => {
     // Suppose the server sends a response with an Access-Control-Allow-Origin value with an explicit origin (rather than the "*" wildcard).
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
     if (opts.origin !== '*') {
-      c.header('Vary', 'Origin', { append: true })
+      appendVary('Origin')
     }
   }
 }
