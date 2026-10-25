@@ -253,8 +253,8 @@ export class JSXNode implements HtmlEscaped {
       if (!isValidAttributeName(key)) {
         continue
       }
-      if (key === 'children') {
-        // skip children
+      if (key === 'children' || key === 'ref') {
+        // skip children and ref (refs are never rendered on the server)
       } else if (key === 'style' && typeof v === 'object') {
         // object to style strings
         let styleStr = ''
