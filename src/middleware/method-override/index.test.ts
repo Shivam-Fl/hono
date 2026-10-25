@@ -1,3 +1,4 @@
+import type { Context } from '../../context'
 import { Hono } from '../../hono'
 import { methodOverride } from './index'
 
@@ -216,6 +217,58 @@ describe('Method Override Middleware', () => {
         method: 'GET',
         queryValue: 'delete', // It does not modify the queries.
       })
+    })
+  })
+
+  describe('Override to GET/HEAD with a body', () => {
+    const handler = (c: Context) => c.text('method:' + c.req.method)
+
+    it.each(['GET', 'HEAD'])('Should override a POST with a body to %s by header', async (m) => {
+      const app = new Hono()
+      app.use('/posts', methodOverride({ app, header: 'X-Method-Override' }))
+      app.get('/posts', handler)
+      const res = await app.request('/posts', {
+        method: 'POST',
+        headers: { 'X-Method-Override': m },
+        body: 'x',
+      })
+      expect(res.status).toBe(200)
+      if (m === 'GET') {
+        expect(await res.text()).toBe('method:GET')
+      }
+    })
+
+    it('Should override a POST with a body to GET by query', async () => {
+      const app = new Hono()
+      app.use('/posts', methodOverride({ app, query: '_method' }))
+      app.get('/posts', handler)
+      const res = await app.request('/posts?_method=GET', { method: 'POST', body: 'x' })
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('method:GET')
+    })
+
+    it('Should override a urlencoded form POST to GET', async () => {
+      const app = new Hono()
+      app.use('/posts', methodOverride({ app }))
+      app.get('/posts', handler)
+      const res = await app.request('/posts', {
+        method: 'POST',
+        body: new URLSearchParams({ _method: 'GET', a: 'b' }),
+      })
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('method:GET')
+    })
+
+    it('Should override a multipart form POST to GET', async () => {
+      const app = new Hono()
+      app.use('/posts', methodOverride({ app }))
+      app.get('/posts', handler)
+      const form = new FormData()
+      form.append('_method', 'GET')
+      form.append('a', 'b')
+      const res = await app.request('/posts', { method: 'POST', body: form })
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('method:GET')
     })
   })
 })
