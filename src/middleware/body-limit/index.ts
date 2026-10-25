@@ -104,7 +104,14 @@ export const bodyLimit = (options: BodyLimitOptions): MiddlewareHandler => {
       }),
       duplex: 'half',
     }
-    c.req.raw = new Request(c.req.raw, requestInit as RequestInit)
+    // Rebuild the request with the class that created it. A request made by
+    // another Request implementation (e.g. @hono/node-server with
+    // `overrideGlobalObjects: false`) cannot be wrapped by the global constructor.
+    const RequestClass: typeof Request =
+      typeof c.req.raw.constructor === 'function'
+        ? (c.req.raw.constructor as typeof Request)
+        : Request
+    c.req.raw = new RequestClass(c.req.raw, requestInit as RequestInit)
 
     return next()
   }

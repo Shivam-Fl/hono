@@ -270,4 +270,82 @@ describe('Body Limit Middleware', () => {
       expect(handler).not.toHaveBeenCalled()
     })
   })
+
+  describe('request created by a non-global Request class', () => {
+    // Mimics @hono/node-server with `overrideGlobalObjects: false`: the request
+    // class keeps private state, so the global `Request` cannot wrap it.
+    class ForeignRequest {
+      #inner: Request
+      constructor(input: string | ForeignRequest, init?: RequestInit) {
+        if (typeof input === 'string') {
+          this.#inner = new Request(input, init)
+        } else {
+          const { url, method, headers } = input
+          this.#inner = new Request(url, { method, headers, ...init })
+        }
+      }
+      get url() {
+        return this.#inner.url
+      }
+      get method() {
+        return this.#inner.method
+      }
+      get headers() {
+        return this.#inner.headers
+      }
+      get body() {
+        return this.#inner.body
+      }
+      get signal() {
+        return this.#inner.signal
+      }
+      text() {
+        return this.#inner.text()
+      }
+    }
+
+    const makeRequest = (body: string) =>
+      new ForeignRequest('http://localhost/upload?q=1', {
+        method: 'POST',
+        headers: { 'x-test': 'yes' },
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(body))
+            controller.close()
+          },
+        }),
+        duplex: 'half',
+      } as RequestInit)
+
+    beforeEach(() => {
+      app = new Hono()
+      app.use('*', bodyLimit({ maxSize: 8 }))
+      app.post('/upload', async (c) =>
+        c.json({
+          body: await c.req.text(),
+          url: c.req.url,
+          method: c.req.method,
+          header: c.req.header('x-test'),
+          wrapped: c.req.raw instanceof ForeignRequest,
+        })
+      )
+    })
+
+    it('should pass a body without Content-Length within the limit', async () => {
+      const res = await app.fetch(makeRequest('hello') as unknown as Request)
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({
+        body: 'hello',
+        url: 'http://localhost/upload?q=1',
+        method: 'POST',
+        header: 'yes',
+        wrapped: true,
+      })
+    })
+
+    it('should reject a body without Content-Length over the limit', async () => {
+      const res = await app.fetch(makeRequest('123456789') as unknown as Request)
+      expect(res.status).toBe(413)
+    })
+  })
 })
