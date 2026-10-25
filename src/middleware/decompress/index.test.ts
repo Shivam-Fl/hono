@@ -74,6 +74,20 @@ describe('Decompress Middleware', () => {
     expect((await (await post('plain')).json()).text).toBe('plain')
   })
 
+  it('Should ignore identity within a list and strip an explicit Content-Length', async () => {
+    const body = await compressWith('gzip', 'listed')
+    const res = await app.request('/', {
+      method: 'POST',
+      body,
+      headers: {
+        'Content-Encoding': 'gzip, identity',
+        'Content-Length': String(body.byteLength),
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ text: 'listed', encoding: null, length: null })
+  })
+
   it('Should skip requests without a body', async () => {
     const res = await app.request('/', { headers: { 'Content-Encoding': 'gzip' } })
     expect(res.status).toBe(200)
