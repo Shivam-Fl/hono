@@ -30,6 +30,13 @@ describe('isContentTypeBinary', () => {
     ['APPLICATION/VND.APPLE.INSTALLER+XML', true],
     ['APPLICATION/JSON', false],
     ['TEXT/PLAIN', false],
+    ['text/plain; charset=shift_jis', true],
+    ['text/plain; charset=Shift_JIS', true],
+    ['text/html; charset="shift_jis"', true],
+    ['text/plain; charset=utf-8', false],
+    ['text/plain; charset="UTF-8"', false],
+    ['text/plain; charset=us-ascii', false],
+    ['application/json; charset=euc-jp', true],
   ])('Should determine whether %s it is binary', (mimeType: string, expected: boolean) => {
     expect(isContentTypeBinary(mimeType)).toBe(expected)
   })
@@ -101,6 +108,19 @@ describe('handle', () => {
     const res = await handler(cloudFrontEdgeEvent)
 
     expect(res.body).toBe('https://hono.dev/test-path')
+  })
+
+  it('Should base64-encode a shift_jis body without corrupting bytes', async () => {
+    const bytes = Uint8Array.from([0x83, 0x65, 0x83, 0x58, 0x83, 0x67])
+    const app = new Hono()
+    app.get('/test-path', (c) =>
+      c.body(bytes, 200, { 'Content-Type': 'text/plain; charset=shift_jis' })
+    )
+    const res = await handle(app)(cloudFrontEdgeEvent)
+
+    expect(res.bodyEncoding).toBe('base64')
+    expect(res.headers['content-type'][0].value).toBe('text/plain; charset=shift_jis')
+    expect([...decodeBase64(res.body as string)]).toEqual([...bytes])
   })
 
   it('Should omit body from a 204 result and keep it for a 200 result', async () => {
