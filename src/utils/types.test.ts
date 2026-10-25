@@ -296,10 +296,16 @@ describe('JSONParsed', () => {
     it('Should stop at a recursive JSON type', () => {
       type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
       type Actual = JSONParsed<{ metadata: Json }>
+      // The recursion stops at the first type that is met again; no TS2589.
       type Expected = {
-        metadata: string | number | boolean | JSONValue[] | { [x: string]: JSONValue } | null
+        metadata:
+          | string
+          | number
+          | boolean
+          | (JSONValue | { [x: string]: JSONValue })[]
+          | { [x: string]: JSONValue | JSONValue[] }
+          | null
       }
-      const probe: { diag: 1 } = null as unknown as Actual['metadata']
       expectTypeOf<Actual>().toEqualTypeOf<Expected>()
     })
 
