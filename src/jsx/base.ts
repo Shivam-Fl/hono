@@ -114,10 +114,17 @@ export const booleanAttributes = [
 type SuspendedContext = <T>(callback: () => T) => T
 
 const resolveFunctionComponentResult = (
-  result: Promise<string | JSXNode | Child[]>,
+  result: Promise<string | JSXNode | Child[] | null | undefined | boolean | number>,
   suspendedContext?: SuspendedContext
 ): Promise<string> =>
   result.then((resolved) => {
+    // same as the sync path: nullish and boolean render nothing, numbers render as text
+    if (resolved === null || resolved === undefined || typeof resolved === 'boolean') {
+      return raw('')
+    }
+    if (typeof resolved === 'number') {
+      return raw(String(resolved))
+    }
     if (
       typeof resolved !== 'string' &&
       !Array.isArray(resolved) &&

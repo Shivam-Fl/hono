@@ -108,6 +108,26 @@ describe('JSX middleware', () => {
     )
   })
 
+  it.each([
+    ['null', null, '<div></div>'],
+    ['undefined', undefined, '<div></div>'],
+    ['false', false, '<div></div>'],
+    ['true', true, '<div></div>'],
+    ['a number', 0, '<div>0</div>'],
+  ])('Should render async component returning %s', async (_, value, expected) => {
+    const Maybe = async () => value as any
+    app.get('/', (c) =>
+      c.html(
+        <div>
+          <Maybe />
+        </div>
+      )
+    )
+    const res = await app.request('http://localhost/')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe(expected)
+  })
+
   it('Should render async component with "html" tagged template strings', async () => {
     const AsyncComponent = async () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
