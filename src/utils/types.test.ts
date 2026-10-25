@@ -304,7 +304,7 @@ describe('JSONParsed', () => {
 
     it('Should not report TS2589 for JSONParsed<JSONValue>', () => {
       type Actual = JSONParsed<JSONValue>
-      expectTypeOf<Actual>().toMatchTypeOf<JSONValue>()
+      expectTypeOf<[Actual] extends [JSONValue] ? true : false>().toEqualTypeOf<true>()
     })
 
     it('Should stop at a self-referencing object', () => {
