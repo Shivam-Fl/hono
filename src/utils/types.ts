@@ -50,23 +50,41 @@ export type JSONValue = JSONObject | JSONArray | JSONPrimitive
  * which defaults to `bigint | ReadonlyArray<bigint>`.
  * You can set it to `never` to disable this check.
  */
-export type JSONParsed<T, TError = bigint | ReadonlyArray<bigint>> = T extends {
+export type JSONParsed<
+  T,
+  TError = bigint | ReadonlyArray<bigint>,
+  /**
+   * The types on the current path. Used internally to detect recursive types;
+   * do not pass it.
+   */
+  TPath = never,
+> = T extends unknown // distribute, so each member of a union is checked against the path
+  ? IsOnPath<T, TPath> extends true
+    ? JSONValue // a recursive type: stop at the type that is already being converted
+    : JSONParsedInner<T, TError, TPath | T>
+  : never
+
+type IsOnPath<T, TPath> = true extends (TPath extends unknown ? Equal<T, TPath> : never)
+  ? true
+  : false
+
+type JSONParsedInner<T, TError, TPath> = T extends {
   toJSON(): infer J
 }
   ? (() => J) extends () => JSONPrimitive
     ? J
     : (() => J) extends () => { toJSON(): unknown }
       ? {}
-      : JSONParsed<J, TError>
+      : JSONParsed<J, TError, TPath>
   : T extends JSONPrimitive
     ? T
     : T extends InvalidJSONValue
       ? never
       : T extends ReadonlyArray<unknown>
-        ? { [K in keyof T]: JSONParsed<InvalidToNull<T[K]>, TError> } extends infer A
+        ? { [K in keyof T]: JSONParsed<InvalidToNull<T[K]>, TError, TPath> } extends infer A
           ? A extends ReadonlyArray<unknown>
             ? A // plain array or tuple; the mapped type preserves array-ness
-            : JSONParsed<InvalidToNull<T[number]>, TError>[] // array with extra properties; JSON.stringify drops them
+            : JSONParsed<InvalidToNull<T[number]>, TError, TPath>[] // array with extra properties; JSON.stringify drops them
           : never
         : T extends Set<unknown> | Map<unknown, unknown> | Record<string, never>
           ? {}
@@ -77,8 +95,8 @@ export type JSONParsed<T, TError = bigint | ReadonlyArray<bigint>> = T extends {
                   [
                     K in keyof OmitSymbolKeys<T> as IsInvalid<T[K]> extends true ? never : K
                   ]: boolean extends IsInvalid<T[K]>
-                    ? JSONParsed<T[K], TError> | undefined
-                    : JSONParsed<T[K], TError>
+                    ? JSONParsed<T[K], TError, TPath> | undefined
+                    : JSONParsed<T[K], TError, TPath>
                 }
             : T extends unknown
               ? T extends TError
