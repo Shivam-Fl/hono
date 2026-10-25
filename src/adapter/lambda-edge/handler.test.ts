@@ -116,11 +116,15 @@ describe('handle', () => {
     app.get('/test-path', (c) =>
       c.body(bytes, 200, { 'Content-Type': 'text/plain; charset=shift_jis' })
     )
-    const res = await handle(app)(cloudFrontEdgeEvent)
+    const res = (await handle(app)(cloudFrontEdgeEvent)) as unknown as {
+      body: string
+      bodyEncoding?: string
+      headers: Record<string, { key: string; value: string }[]>
+    }
 
     expect(res.bodyEncoding).toBe('base64')
     expect(res.headers['content-type'][0].value).toBe('text/plain; charset=shift_jis')
-    expect([...decodeBase64(res.body as string)]).toEqual([...bytes])
+    expect([...decodeBase64(res.body)]).toEqual([...bytes])
   })
 
   it('Should omit body from a 204 result and keep it for a 200 result', async () => {
