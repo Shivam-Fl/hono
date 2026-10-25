@@ -132,7 +132,9 @@ describe('Non-UTF-8 charset response', () => {
   it('Should base64-encode a shift_jis body without corrupting bytes', async () => {
     const bytes = Uint8Array.from([0x83, 0x65, 0x83, 0x58, 0x83, 0x67])
     const app = new Hono()
-    app.get('/', (c) => c.body(bytes, 200, { 'Content-Type': 'text/plain; charset=shift_jis' }))
+    app.get('/my/path', (c) =>
+      c.body(bytes, 200, { 'Content-Type': 'text/plain; charset=shift_jis' })
+    )
     const handler = handle(app)
     const result = await handler(baseV2Event)
     expect(result.isBase64Encoded).toBe(true)
