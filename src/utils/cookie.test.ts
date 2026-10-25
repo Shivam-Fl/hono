@@ -313,6 +313,30 @@ describe('Set cookie', () => {
     )
   })
 
+  it.each(['__Secure-sid', '__secure-sid', '__SECURE-sid', '__SeCuRe-sid'])(
+    'Should require Secure for %s cookie',
+    (name) => {
+      expect(() => serialize(name, 'v')).toThrowError(
+        '__Secure- Cookie must have Secure attributes'
+      )
+      expect(serialize(name, 'v', { secure: true })).toBe(`${name}=v; Secure`)
+    }
+  )
+
+  it.each(['__Host-sid', '__host-sid', '__HOST-sid', '__HoSt-sid'])(
+    'Should validate attributes of %s cookie',
+    (name) => {
+      expect(() => serialize(name, 'v')).toThrowError('__Host- Cookie must have Secure attributes')
+      expect(() => serialize(name, 'v', { secure: true })).toThrowError(
+        '__Host- Cookie must have Path attributes with "/"'
+      )
+      expect(() =>
+        serialize(name, 'v', { secure: true, path: '/', domain: 'example.com' })
+      ).toThrowError('__Host- Cookie must not have Domain attributes')
+      expect(serialize(name, 'v', { secure: true, path: '/' })).toBe(`${name}=v; Path=/; Secure`)
+    }
+  )
+
   it('Should serialize a signed cookie', async () => {
     const secret = 'secret chocolate chips'
     const serialized = await serializeSigned('delicious_cookie', 'macha', secret)
