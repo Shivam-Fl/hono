@@ -305,6 +305,79 @@ describe('CORS by Middleware', () => {
     expect(res.headers.get('Vary')).toBe('Accept-Encoding, Origin, Access-Control-Request-Headers')
   })
 
+  describe('Vary header deduplication', () => {
+    const run = async (
+      preset: string[] | undefined,
+      method = 'GET',
+      extra: Record<string, string> = {}
+    ) => {
+      const testApp = new Hono()
+      testApp.use('/api/*', async (c, next) => {
+        for (const v of preset ?? []) {
+          c.header('Vary', v, { append: true })
+        }
+        await next()
+      })
+      testApp.use(
+        '/api/*',
+        cors({ origin: 'http://example.com', allowHeaders: ['X-Custom-Header'] })
+      )
+      testApp.all('/api/test', (c) => c.text('ok'))
+      return testApp.request('http://localhost/api/test', {
+        method,
+        headers: { Origin: 'http://example.com', ...extra },
+      })
+    }
+
+    it('does not duplicate a preset "Vary: Origin"', async () => {
+      const res = await run(['Origin'])
+      expect(res.headers.get('Vary')).toBe('Origin')
+    })
+
+    it('does not duplicate Origin in "Vary: Origin, Accept-Encoding"', async () => {
+      const res = await run(['Origin, Accept-Encoding'])
+      expect(res.headers.get('Vary')).toBe('Origin, Accept-Encoding')
+    })
+
+    it('matches tokens case-insensitively', async () => {
+      const res = await run(['origin'])
+      expect(res.headers.get('Vary')).toBe('origin')
+    })
+
+    it('detects tokens across multiple Vary headers', async () => {
+      const res = await run(['Accept-Encoding', 'Origin'])
+      expect(res.headers.get('Vary')).toBe('Accept-Encoding, Origin')
+    })
+
+    it('appends nothing when Vary is "*"', async () => {
+      const res = await run(['*'])
+      expect(res.headers.get('Vary')).toBe('*')
+    })
+
+    it('preflight: appends nothing when Vary is "*"', async () => {
+      const res = await run(['*'], 'OPTIONS', {
+        'Access-Control-Request-Headers': 'X-Custom-Header',
+      })
+      expect(res.status).toBe(204)
+      expect(res.headers.get('Vary')).toBe('*')
+    })
+
+    it('preflight: does not duplicate existing tokens', async () => {
+      const res = await run(['Origin, Access-Control-Request-Headers'], 'OPTIONS', {
+        'Access-Control-Request-Headers': 'X-Custom-Header',
+      })
+      expect(res.status).toBe(204)
+      expect(res.headers.get('Vary')).toBe('Origin, Access-Control-Request-Headers')
+    })
+
+    it('preflight: adds only the missing token', async () => {
+      const res = await run(['Origin'], 'OPTIONS', {
+        'Access-Control-Request-Headers': 'X-Custom-Header',
+      })
+      expect(res.headers.get('Vary')).toBe('Origin, Access-Control-Request-Headers')
+    })
+  })
+
   it('Allow origins by function', async () => {
     let req = new Request('http://localhost/api4/abc', {
       headers: {
