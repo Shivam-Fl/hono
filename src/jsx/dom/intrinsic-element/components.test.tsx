@@ -1135,6 +1135,28 @@ describe('intrinsic element', () => {
       )
     })
 
+    it('should call the updated action after a state change on a single submit', async () => {
+      const logs: string[] = []
+      const App = () => {
+        const [message, setMessage] = useState('A')
+        return (
+          <form action={() => logs.push(message)}>
+            <p>{message}</p>
+            <button type='button' id='change' onClick={() => setMessage('B')}>
+              Change
+            </button>
+            <button type='submit'>Submit</button>
+          </form>
+        )
+      }
+      render(<App />, root)
+      root.querySelector<HTMLButtonElement>('#change')?.click()
+      await Promise.resolve()
+      expect(root.querySelector('p')?.textContent).toBe('B')
+      root.querySelector<HTMLButtonElement>('button[type=submit]')?.click()
+      expect(logs).toEqual(['B'])
+    })
+
     it('toggle show / hide form', async () => {
       const action = vi.fn()
       const App = () => {
