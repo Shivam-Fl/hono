@@ -81,7 +81,7 @@ export const methodOverride = (options: MethodOverrideOptions): MiddlewareHandle
           newHeaders.delete('content-type')
           newHeaders.delete('content-length')
           const request = new Request(c.req.url, {
-            body: newForm,
+            body: hasNoBody(method as string) ? undefined : newForm,
             headers: newHeaders,
             method: method as string,
           })
@@ -95,10 +95,15 @@ export const methodOverride = (options: MethodOverrideOptions): MiddlewareHandle
         if (method) {
           delete params[methodFormName]
           const newParams = new URLSearchParams(params)
-          const request = new Request(newRequest, {
-            body: newParams,
-            method: method as string,
-          })
+          const request = hasNoBody(method as string)
+            ? new Request(c.req.url, {
+                headers: stripBodyHeaders(newRequest.headers),
+                method: method as string,
+              })
+            : new Request(newRequest, {
+                body: newParams,
+                method: method as string,
+              })
           return app.fetch(request, c.env, getExecutionCtx(c))
         }
       }
@@ -110,10 +115,15 @@ export const methodOverride = (options: MethodOverrideOptions): MiddlewareHandle
       if (method) {
         const newHeaders = new Headers(c.req.raw.headers)
         newHeaders.delete(headerName)
-        const request = new Request(c.req.raw, {
-          headers: newHeaders,
-          method,
-        })
+        const request = hasNoBody(method)
+          ? new Request(c.req.url, {
+              headers: stripBodyHeaders(newHeaders),
+              method,
+            })
+          : new Request(c.req.raw, {
+              headers: newHeaders,
+              method,
+            })
         return app.fetch(request, c.env, getExecutionCtx(c))
       }
     }
@@ -124,11 +134,12 @@ export const methodOverride = (options: MethodOverrideOptions): MiddlewareHandle
       if (method) {
         const url = new URL(c.req.url)
         url.searchParams.delete(queryName)
+        const noBody = hasNoBody(method)
         const requestInit: RequestInit & { duplex?: 'half' } = {
-          body: c.req.raw.body,
-          headers: c.req.raw.headers,
+          body: noBody ? undefined : c.req.raw.body,
+          headers: noBody ? stripBodyHeaders(c.req.raw.headers) : c.req.raw.headers,
           method,
-          duplex: c.req.raw.body ? 'half' : undefined,
+          duplex: !noBody && c.req.raw.body ? 'half' : undefined,
         }
         const request = new Request(url.toString(), requestInit)
         return app.fetch(request, c.env, getExecutionCtx(c))
@@ -136,6 +147,16 @@ export const methodOverride = (options: MethodOverrideOptions): MiddlewareHandle
     }
     await next()
   }
+
+// A Request with the GET or HEAD method cannot have a body.
+const hasNoBody = (method: string) => ['GET', 'HEAD'].includes(method.toUpperCase())
+
+const stripBodyHeaders = (headers: Headers) => {
+  const newHeaders = new Headers(headers)
+  newHeaders.delete('content-type')
+  newHeaders.delete('content-length')
+  return newHeaders
+}
 
 const getExecutionCtx = (c: Context) => {
   let executionCtx: ExecutionContext | undefined
