@@ -191,6 +191,18 @@ describe('JSON', () => {
     expect(await res.json()).toEqual({ foo: 'bar' })
   })
 
+  it('Should validate if Content-Type is a subtype containing digits like application/vnd.github.v3+json', async () => {
+    const res = await app.request('http://localhost/post', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/vnd.github.v3+json',
+      },
+      body: JSON.stringify({ foo: 'bar' }),
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ foo: 'bar' })
+  })
+
   it('Should validate if Content-Type is a subtype like application/merge-patch+json', async () => {
     const res = await app.request('http://localhost/post', {
       method: 'POST',
