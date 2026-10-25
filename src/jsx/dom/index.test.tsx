@@ -3197,6 +3197,88 @@ describe('DOM', () => {
     })
   })
 
+  describe('dependency comparison uses Object.is', () => {
+    it('useEffect does not rerun when a dependency stays NaN', async () => {
+      let effectCount = 0
+      const Component = () => {
+        const [count, setCount] = useState(0)
+        useEffect(() => {
+          effectCount++
+        }, [NaN])
+        return <button onClick={() => setCount(count + 1)}>{count}</button>
+      }
+      render(<Component />, root)
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(effectCount).toBe(1)
+      root.querySelector('button')?.click()
+      await new Promise((resolve) => setTimeout(resolve))
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(root.innerHTML).toBe('<button>1</button>')
+      expect(effectCount).toBe(1)
+    })
+
+    it('useEffect reruns when a dependency changes from 0 to -0', async () => {
+      const seen: number[] = []
+      const Component = () => {
+        const [value, setValue] = useState(0)
+        useEffect(() => {
+          seen.push(1 / value)
+        }, [value])
+        return <button onClick={() => setValue(-0)}>{String(Object.is(value, -0))}</button>
+      }
+      render(<Component />, root)
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(seen).toEqual([Infinity])
+      root.querySelector('button')?.click()
+      await new Promise((resolve) => setTimeout(resolve))
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(seen).toEqual([Infinity, -Infinity])
+    })
+
+    it('useLayoutEffect and useInsertionEffect handle NaN and signed zero', async () => {
+      const calls = { layout: 0, insertion: 0 }
+      const Component = () => {
+        const [value, setValue] = useState(0)
+        useLayoutEffect(() => {
+          calls.layout++
+        }, [value])
+        useInsertionEffect(() => {
+          calls.insertion++
+        }, [NaN])
+        return <button onClick={() => setValue(-0)}>{String(value)}</button>
+      }
+      render(<Component />, root)
+      await new Promise((resolve) => setTimeout(resolve))
+      root.querySelector('button')?.click()
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(calls.layout).toBe(2)
+      expect(calls.insertion).toBe(1)
+    })
+
+    it('useMemo and useCallback follow Object.is', async () => {
+      let factoryCalled = 0
+      const callbacks: (() => void)[] = []
+      const Component = () => {
+        const [value, setValue] = useState(0)
+        useMemo(() => {
+          factoryCalled++
+          return 1
+        }, [NaN])
+        const zeroMemo = useMemo(() => 1 / value, [value])
+        callbacks.push(useCallback(() => {}, [NaN]))
+        return <button onClick={() => setValue(-0)}>{zeroMemo}</button>
+      }
+      render(<Component />, root)
+      expect(root.innerHTML).toBe('<button>Infinity</button>')
+      root.querySelector('button')?.click()
+      await Promise.resolve()
+      expect(root.innerHTML).toBe('<button>-Infinity</button>')
+      expect(factoryCalled).toBe(1)
+      expect(callbacks.length).toBeGreaterThan(1)
+      expect(new Set(callbacks).size).toBe(1)
+    })
+  })
+
   describe('isValidElement', () => {
     it('valid', () => {
       expect(isValidElement(<div />)).toBe(true)
