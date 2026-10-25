@@ -116,8 +116,30 @@ describe('isContentTypeBinary', () => {
     ['APPLICATION/VND.APPLE.INSTALLER+XML', true],
     ['APPLICATION/JSON', false],
     ['TEXT/PLAIN', false],
+    ['text/plain; charset=shift_jis', true],
+    ['text/plain; charset=Shift_JIS', true],
+    ['text/html; charset="shift_jis"', true],
+    ['text/plain; charset=utf-8', false],
+    ['text/plain; charset="UTF-8"', false],
+    ['text/plain; charset=us-ascii', false],
+    ['application/json; charset=euc-jp', true],
   ])('Should determine whether %s it is binary', (mimeType: string, expected: boolean) => {
     expect(defaultIsContentTypeBinary(mimeType)).toBe(expected)
+  })
+})
+
+describe('Non-UTF-8 charset response', () => {
+  it('Should base64-encode a shift_jis body without corrupting bytes', async () => {
+    const bytes = Uint8Array.from([0x83, 0x65, 0x83, 0x58, 0x83, 0x67])
+    const app = new Hono()
+    app.post('/my/path', (c) =>
+      c.body(bytes, 200, { 'Content-Type': 'text/plain; charset=shift_jis' })
+    )
+    const handler = handle(app)
+    const result = await handler(baseV2Event)
+    expect(result.isBase64Encoded).toBe(true)
+    expect(result.headers['content-type']).toBe('text/plain; charset=shift_jis')
+    expect([...Buffer.from(result.body, 'base64')]).toEqual([...bytes])
   })
 })
 

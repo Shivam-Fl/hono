@@ -263,6 +263,13 @@ export const isContentTypeBinary = (contentType: string): boolean => {
     return true
   }
 
+  const charset = /;\s*charset\s*=\s*(?:"([^"]*)"|([^;\s]*))/i.exec(contentType)
+  const declared = (charset?.[1] ?? charset?.[2] ?? '').trim().toLowerCase()
+  if (declared && !/^(?:utf-?8|us-ascii)$/.test(declared)) {
+    // `Response.text()` always decodes as UTF-8, so other charsets must be sent as raw bytes.
+    return true
+  }
+
   return !/^text\/(?:plain|html|css|javascript|csv)|(?:\/|\+)(?:json|xml)\s*(?:;|$)/i.test(
     contentType
   )
