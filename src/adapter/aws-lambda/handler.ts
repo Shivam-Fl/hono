@@ -145,10 +145,20 @@ const getRequestContext = (
 async function* readWebStream(
   reader: ReadableStreamDefaultReader<Uint8Array>
 ): AsyncGenerator<Uint8Array> {
-  let readResult = await reader.read()
-  while (!readResult.done) {
-    yield readResult.value
-    readResult = await reader.read()
+  let completed = false
+  try {
+    let readResult = await reader.read()
+    while (!readResult.done) {
+      yield readResult.value
+      readResult = await reader.read()
+    }
+    completed = true
+  } finally {
+    if (!completed) {
+      // The consumer stopped early (e.g. the destination writable failed): cancel the
+      // Web response body so that its cancellation handlers (such as `onAbort`) run.
+      await reader.cancel().catch(() => {})
+    }
   }
 }
 

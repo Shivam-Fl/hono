@@ -1,10 +1,13 @@
+import { Writable } from 'node:stream'
 import { setCookie } from '../../helper/cookie'
+import { streamText } from '../../helper/streaming'
 import { Hono } from '../../hono'
 import { bodyLimit } from '../../middleware/body-limit'
 import type { APIGatewayProxyEventV2, LambdaEvent, LatticeProxyEventV2 } from './handler'
 import {
   getProcessor,
   handle,
+  streamHandle,
   isContentEncodingBinary,
   defaultIsContentTypeBinary,
 } from './handler'
@@ -674,5 +677,55 @@ describe('V2 request context authorizer', () => {
     >()
     // A JWT authorizer reports no scopes as `null`.
     expectTypeOf<null>().toMatchTypeOf<NonNullable<typeof authorizer.jwt>['scopes']>()
+  })
+})
+
+describe('streamHandle', () => {
+  afterEach(() => {
+    // @ts-expect-error awslambda is a test global
+    delete globalThis.awslambda
+  })
+
+  it('Should cancel the response (onAbort) when the destination writable fails', async () => {
+    // @ts-expect-error awslambda is a test global
+    globalThis.awslambda = {
+      streamifyResponse: (handler: unknown) => handler,
+      HttpResponseStream: { from: (stream: unknown) => stream },
+    }
+    const onAbort = vi.fn()
+    const app = new Hono()
+    app.get('/', (c) =>
+      streamText(c, async (stream) => {
+        stream.onAbort(onAbort)
+        for (let i = 0; i < 10 && !stream.aborted; i++) {
+          await stream.write('x')
+          await stream.sleep(1)
+        }
+      })
+    )
+    const destination = new Writable({
+      write(_chunk, _encoding, callback) {
+        callback(new Error('destination closed'))
+      },
+    })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await (streamHandle(app) as any)(
+      {
+        version: '2.0',
+        routeKey: '$default',
+        rawPath: '/',
+        rawQueryString: '',
+        headers: { host: 'example.test' },
+        body: null,
+        isBase64Encoded: false,
+        requestContext: { domainName: 'example.test', http: { method: 'GET' } },
+      },
+      destination,
+      {}
+    )
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    consoleError.mockRestore()
+    expect(destination.destroyed).toBe(true)
+    expect(onAbort).toHaveBeenCalledTimes(1)
   })
 })
