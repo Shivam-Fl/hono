@@ -1,7 +1,7 @@
 import type { Child, FC, PropsWithChildren } from '../'
 import type { ErrorHandler, FallbackRender } from '../components'
 import { DOM_ERROR_HANDLER } from '../constants'
-import { Fragment } from './jsx-runtime'
+import { Fragment, jsx } from './jsx-runtime'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const ErrorBoundary: FC<
@@ -32,7 +32,10 @@ export const Suspense: FC<PropsWithChildren<{ fallback: any }>> = (({
       throw err
     }
     err.finally(retry)
-    return fallback
+    // A falsy fallback (`null`, `false`, ...) is a valid, empty fallback; wrap it as a JSX node so
+    // that it is not mistaken for "no fallback", which would let the promise escape render().
+    // Do not call `Fragment()` directly: the node would be diffed against the suspended children.
+    return fallback || jsx(Fragment, { children: fallback }, undefined)
   }
   return res
 }) as any

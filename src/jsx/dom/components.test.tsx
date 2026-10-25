@@ -60,6 +60,55 @@ function runner(
         expect(root.innerHTML).toBe('<p>1</p>')
       })
 
+      describe.each([
+        ['null', null],
+        ['false', false],
+        ['undefined', undefined],
+      ])('with falsy fallback: %s', (_name, fallback) => {
+        it('renders nothing while suspended, then the content', async () => {
+          let resolve: (value: number) => void = () => {}
+          const promise = new Promise<number>((_resolve) => (resolve = _resolve))
+          const Content = () => <p>{use(promise)}</p>
+          render(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            <Suspense fallback={fallback as any}>
+              <Content />
+            </Suspense>,
+            root
+          )
+          expect(root.innerHTML).toBe('')
+          resolve(1)
+          await new Promise((resolve) => setTimeout(resolve))
+          expect(root.innerHTML).toBe('<p>1</p>')
+        })
+      })
+
+      it('with falsy fallback keeps child state when suspending again', async () => {
+        const counterMap: Record<number, Promise<number>> = {}
+        const getCounter = (count: number) => (counterMap[count] ||= Promise.resolve(count + 1))
+        const Content = ({ count }: { count: number }) => <div>{use(getCounter(count))}</div>
+        const Component = () => {
+          const [count, setCount] = useState(0)
+          return (
+            <Suspense fallback={null}>
+              <Content count={count} />
+              <button onClick={() => setCount(count + 1)}>Increment</button>
+            </Suspense>
+          )
+        }
+        render(<Component />, root)
+        expect(root.innerHTML).toBe('')
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(root.innerHTML).toBe('<div>1</div><button>Increment</button>')
+        root.querySelector('button')?.click()
+        await Promise.resolve()
+        expect(root.innerHTML).toBe('')
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(root.innerHTML).toBe('<div>2</div><button>Increment</button>')
+      })
+
       it('with use() update', async () => {
         const counterMap: Record<number, Promise<number>> = {}
         const getCounter = (count: number) => (counterMap[count] ||= Promise.resolve(count + 1))
