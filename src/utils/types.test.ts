@@ -291,4 +291,34 @@ describe('JSONParsed', () => {
     type Expected = { unsafe: string }
     expectTypeOf<Actual>().toEqualTypeOf<Expected>()
   })
+
+  describe('recursive types', () => {
+    it('Should stop at a recursive JSON type', () => {
+      type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
+      type Actual = JSONParsed<{ metadata: Json }>
+      type Expected = {
+        metadata: string | number | boolean | JSONValue[] | { [x: string]: JSONValue } | null
+      }
+      expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+    })
+
+    it('Should not report TS2589 for JSONParsed<JSONValue>', () => {
+      type Actual = JSONParsed<JSONValue>
+      expectTypeOf<Actual>().toMatchTypeOf<JSONValue>()
+    })
+
+    it('Should stop at a self-referencing object', () => {
+      type Tree = { name: string; children: Tree[] }
+      type Actual = JSONParsed<Tree>
+      type Expected = { name: string; children: JSONValue[] }
+      expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+    })
+
+    it('Should not change a repeated non-recursive type', () => {
+      type Item = { id: number }
+      type Actual = JSONParsed<{ a: Item; b: { c: Item }; d: Item[] }>
+      type Expected = { a: { id: number }; b: { c: { id: number } }; d: { id: number }[] }
+      expectTypeOf<Actual>().toEqualTypeOf<Expected>()
+    })
+  })
 })
