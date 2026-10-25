@@ -104,12 +104,13 @@ describe('handle', () => {
   })
 
   it('Should omit body from a 204 result and keep it for a 200 result', async () => {
+    type ResultShape = { status: string; body?: string; bodyEncoding?: string }
     const app = new Hono()
     app.get('/test-path', (c) => c.body(null, 204, { 'content-type': 'text/plain' }))
     app.get('/ok', (c) => c.text('ok'))
     const handler = handle(app)
 
-    const res204 = await handler(cloudFrontEdgeEvent)
+    const res204 = (await handler(cloudFrontEdgeEvent)) as unknown as ResultShape
     expect(res204.status).toBe('204')
     expect(Object.hasOwn(res204, 'body')).toBe(false)
 
@@ -123,7 +124,7 @@ describe('handle', () => {
         },
       ],
     }
-    const res200 = await handler(event200)
+    const res200 = (await handler(event200)) as unknown as ResultShape
     expect(res200.status).toBe('200')
     expect(Object.hasOwn(res200, 'body')).toBe(true)
     expect(res200.body).toBe('ok')
