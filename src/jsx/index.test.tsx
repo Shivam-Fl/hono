@@ -482,6 +482,22 @@ describe('render to string', () => {
       expect(template.toString()).toBe('<div>Content</div>')
     })
 
+    it('should ignore ref objects', () => {
+      const ref = { current: null }
+      const template = (
+        <a ref={ref} href='/'>
+          x
+        </a>
+      )
+      expect(template.toString()).toBe('<a href="/">x</a>')
+    })
+
+    it('should ignore ref of any value type', () => {
+      expect((<div ref={'str' as never}>a</div>).toString()).toBe('<div>a</div>')
+      expect((<div ref={1 as never}>a</div>).toString()).toBe('<div>a</div>')
+      expect((<div ref={null as never}>a</div>).toString()).toBe('<div>a</div>')
+    })
+
     it('should raise an error if used in other props', () => {
       const onClick = () => {}
       const template = <button data-handler={onClick}>Click</button>
