@@ -1,9 +1,9 @@
 import { decompress } from '.'
 import { Hono } from '../../hono'
 
-const compressWith = async (format: CompressionFormat, text: string): Promise<Uint8Array> => {
+const compressWith = async (format: CompressionFormat, text: string): Promise<ArrayBuffer> => {
   const stream = new Blob([text]).stream().pipeThrough(new CompressionStream(format))
-  return new Uint8Array(await new Response(stream).arrayBuffer())
+  return new Response(stream).arrayBuffer()
 }
 
 const supportsBrotli = (() => {
@@ -60,11 +60,9 @@ describe('Decompress Middleware', () => {
 
   it('Should undo stacked encodings in reverse order', async () => {
     const once = await compressWith('deflate', 'stacked')
-    const twice = new Uint8Array(
-      await new Response(
-        new Blob([once as BlobPart]).stream().pipeThrough(new CompressionStream('gzip'))
-      ).arrayBuffer()
-    )
+    const twice = await new Response(
+      new Blob([once]).stream().pipeThrough(new CompressionStream('gzip'))
+    ).arrayBuffer()
     // deflate was applied first, then gzip
     const res = await post(twice, 'deflate, gzip')
     expect(res.status).toBe(200)
@@ -91,7 +89,7 @@ describe('Decompress Middleware', () => {
 
   it.runIf(supportsBrotli)('Should decompress brotli when supported', async () => {
     const { brotliCompressSync } = await import('node:zlib')
-    const res = await post(brotliCompressSync('hello br'), 'br')
+    const res = await post(new Blob([brotliCompressSync('hello br') as BlobPart]), 'br')
     expect(res.status).toBe(200)
     expect((await res.json()).text).toBe('hello br')
   })
