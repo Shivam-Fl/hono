@@ -299,6 +299,7 @@ describe('JSONParsed', () => {
       type Expected = {
         metadata: string | number | boolean | JSONValue[] | { [x: string]: JSONValue } | null
       }
+      const probe: { diag: 1 } = null as unknown as Actual['metadata']
       expectTypeOf<Actual>().toEqualTypeOf<Expected>()
     })
 
