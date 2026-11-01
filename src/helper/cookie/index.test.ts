@@ -170,6 +170,22 @@ describe('Cookie Middleware', () => {
       expect(header).toBe('delicious_cookie=macha; Path=/')
     })
 
+    it.each(['__secure-sid', '__host-sid'])(
+      'setCookie() validates the prefix of %s case-insensitively',
+      (name) => {
+        const a = new Hono()
+        a.get('/', (c) => {
+          setCookie(c, name, 'v')
+          return c.text('ok')
+        })
+        a.onError((e, c) => c.text(e.message, 500))
+        return a.request('http://localhost/').then(async (res) => {
+          expect(res.status).toBe(500)
+          expect(await res.text()).toMatch(/Cookie must have Secure attributes/)
+        })
+      }
+    )
+
     app.get('/a/set-cookie-path', (c) => {
       setCookie(c, 'delicious_cookie', 'macha', { path: '/a' })
       return c.text('Give cookie')
