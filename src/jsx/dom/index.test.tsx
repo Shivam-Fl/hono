@@ -2862,6 +2862,44 @@ describe('DOM', () => {
       expect(effectCount).toBe(2)
       expect(cleanupCount).toBe(1)
     })
+
+    it('does not rerun when a dependency stays NaN', async () => {
+      let effectCount = 0
+      const App = () => {
+        const [count, setCount] = useState(0)
+        useEffect(() => {
+          effectCount++
+        }, [NaN])
+        return <button onClick={() => setCount(count + 1)}>{count}</button>
+      }
+      render(<App />, root)
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(effectCount).toBe(1)
+      root.querySelector('button')?.click()
+      await Promise.resolve()
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(root.innerHTML).toBe('<button>1</button>')
+      expect(effectCount).toBe(1)
+    })
+
+    it('reruns when a dependency changes from 0 to -0', async () => {
+      let effectCount = 0
+      const App = () => {
+        const [value, setValue] = useState(0)
+        useEffect(() => {
+          effectCount++
+        }, [value])
+        return <button onClick={() => setValue(-0)}>{Object.is(value, -0) ? '-0' : '0'}</button>
+      }
+      render(<App />, root)
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(effectCount).toBe(1)
+      root.querySelector('button')?.click()
+      await Promise.resolve()
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(root.innerHTML).toBe('<button>-0</button>')
+      expect(effectCount).toBe(2)
+    })
   })
 
   describe('useLayoutEffect', () => {
@@ -3194,6 +3232,28 @@ describe('DOM', () => {
         '<div><p>1</p><p>1</p><p>2</p><button>+</button><button>+</button></div>'
       )
       expect(factoryCalled).toBe(2)
+    })
+
+    it('compares dependencies with Object.is', async () => {
+      let nanCalled = 0
+      let zeroCalled = 0
+      const Counter = () => {
+        const [count, setCount] = useState(0)
+        useMemo(() => {
+          nanCalled++
+        }, [NaN])
+        useMemo(() => {
+          zeroCalled++
+        }, [count === 0 ? 0 : -0])
+        return <button onClick={() => setCount(count + 1)}>{count}</button>
+      }
+      render(<Counter />, root)
+      expect(nanCalled).toBe(1)
+      expect(zeroCalled).toBe(1)
+      root.querySelector('button')?.click()
+      await Promise.resolve()
+      expect(nanCalled).toBe(1)
+      expect(zeroCalled).toBe(2)
     })
   })
 
