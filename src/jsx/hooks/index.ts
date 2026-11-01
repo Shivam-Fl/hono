@@ -31,7 +31,7 @@ const isDepsChanged = (
   !prevDeps ||
   !deps ||
   prevDeps.length !== deps.length ||
-  deps.some((dep, i) => dep !== prevDeps[i])
+  deps.some((dep, i) => !Object.is(dep, prevDeps[i]))
 
 let viewTransitionState:
   | [
