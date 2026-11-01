@@ -215,6 +215,21 @@ describe('JSON', () => {
     expect(await res.json()).toEqual({ foo: 'bar' })
   })
 
+  it.each(['application/vnd.github.v3+json', 'application/vnd.example.v2+json; charset=utf-8'])(
+    'Should validate if Content-Type subtype contains digits: %s',
+    async (contentType) => {
+      const res = await app.request('http://localhost/post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': contentType,
+        },
+        body: JSON.stringify({ foo: 'bar' }),
+      })
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ foo: 'bar' })
+    }
+  )
+
   it('Should not validate if Content-Type does not start with application/json', async () => {
     const res = await app.request('http://localhost/post', {
       method: 'POST',

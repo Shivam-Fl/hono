@@ -21,7 +21,7 @@ export type ValidationFunction<
   c: Context<E, P>
 ) => OutputType | TypedResponse | Promise<OutputType> | Promise<TypedResponse>
 
-const jsonRegex = /^application\/([a-z-\.]+\+)?json(;\s*[a-zA-Z0-9\-]+\=([^;]+))*$/i
+const jsonRegex = /^application\/([a-z0-9-\.]+\+)?json(;\s*[a-zA-Z0-9\-]+\=([^;]+))*$/i
 const multipartRegex = /^multipart\/form-data(;\s?boundary=[a-zA-Z0-9'"()+_,\-./:=?]+)?$/i
 const urlencodedRegex = /^application\/x-www-form-urlencoded(;\s*[a-zA-Z0-9\-]+\=([^;]+))*$/i
 
