@@ -339,6 +339,36 @@ describe('createHandler', () => {
     })
   })
 
+  describe('Types - Nine Handlers', () => {
+    const factory = createFactory()
+
+    const handlers = factory.createHandlers(
+      (c) => c.json({ r1: 1 }),
+      (c) => c.json({ r2: 2 }),
+      (c) => c.json({ r3: 3 }),
+      (c) => c.json({ r4: 4 }),
+      (c) => c.json({ r5: 5 }),
+      (c) => c.json({ r6: 6 }),
+      (c) => c.json({ r7: 7 }),
+      (c) => c.json({ r8: 8 }),
+      (c) => c.json({ r9: 9 })
+    )
+
+    type Output<R> = R extends H<any, any, any, TypedResponse<infer Inner>> ? Inner : never
+
+    it('Should keep independent return types for all nine handlers', () => {
+      expectTypeOf<Output<(typeof handlers)[0]>>().toEqualTypeOf<{ r1: number }>()
+      expectTypeOf<Output<(typeof handlers)[1]>>().toEqualTypeOf<{ r2: number }>()
+      expectTypeOf<Output<(typeof handlers)[2]>>().toEqualTypeOf<{ r3: number }>()
+      expectTypeOf<Output<(typeof handlers)[3]>>().toEqualTypeOf<{ r4: number }>()
+      expectTypeOf<Output<(typeof handlers)[4]>>().toEqualTypeOf<{ r5: number }>()
+      expectTypeOf<Output<(typeof handlers)[5]>>().toEqualTypeOf<{ r6: number }>()
+      expectTypeOf<Output<(typeof handlers)[6]>>().toEqualTypeOf<{ r7: number }>()
+      expectTypeOf<Output<(typeof handlers)[7]>>().toEqualTypeOf<{ r8: number }>()
+      expectTypeOf<Output<(typeof handlers)[8]>>().toEqualTypeOf<{ r9: number }>()
+    })
+  })
+
   describe('Types - Multiple Handlers', () => {
     const factory = createFactory()
 
