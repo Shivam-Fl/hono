@@ -165,6 +165,15 @@ export const handle = (
 }
 
 const createResult = async (res: Response): Promise<CloudFrontResult> => {
+  // CloudFront answers HTTP 502 when a viewer-request result with status 204 carries a `body`
+  // field, so leave it out for 204 and for responses without a body.
+  if (res.status === 204 || res.body === null) {
+    return {
+      status: res.status.toString(),
+      headers: convertHeaders(res.headers),
+    }
+  }
+
   const contentEncoding = res.headers.get('content-encoding')
   const isBase64Encoded =
     isContentTypeBinary(res.headers.get('content-type') || '') ||

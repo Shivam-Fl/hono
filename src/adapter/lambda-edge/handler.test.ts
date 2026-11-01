@@ -379,6 +379,50 @@ describe('handle', () => {
   })
 })
 
+describe('handle with a 204 response', () => {
+  const event: CloudFrontEdgeEvent = {
+    Records: [
+      {
+        cf: {
+          config: {
+            distributionDomainName: 'example.test',
+            distributionId: 'EDFDVBD6EXAMPLE',
+            eventType: 'viewer-request',
+            requestId: 'req',
+          },
+          request: {
+            clientIp: '1.2.3.4',
+            headers: { host: [{ key: 'Host', value: 'example.test' }] },
+            method: 'GET',
+            querystring: '',
+            uri: '/',
+          },
+        },
+      },
+    ],
+  }
+
+  it('Should omit body for a bodyless 204', async () => {
+    const app = new Hono()
+    app.get('/', (c) => c.body(null, 204, { 'content-type': 'text/plain' }))
+
+    const res = await handle(app)(event)
+
+    expect(res).toMatchObject({ status: '204' })
+    expect(Object.hasOwn(res, 'body')).toBe(false)
+  })
+
+  it('Should keep body for a 200 response', async () => {
+    const app = new Hono()
+    app.get('/', (c) => c.text('ok'))
+
+    const res = await handle(app)(event)
+
+    expect(res).toMatchObject({ status: '200', body: 'ok' })
+    expect(Object.hasOwn(res, 'body')).toBe(true)
+  })
+})
+
 describe('handle with a malformed event', () => {
   const invalidEventMessage =
     'Unable to map the CloudFront event to a Request: expected `Records[0].cf.request` in the Lambda@Edge event.'
