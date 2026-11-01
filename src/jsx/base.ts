@@ -253,8 +253,8 @@ export class JSXNode implements HtmlEscaped {
       if (!isValidAttributeName(key)) {
         continue
       }
-      if (key === 'children') {
-        // skip children
+      if (key === 'children' || key === 'ref') {
+        // skip children and ref (ref is only meaningful on the client)
       } else if (key === 'style' && typeof v === 'object') {
         // object to style strings
         let styleStr = ''
@@ -288,7 +288,7 @@ export class JSXNode implements HtmlEscaped {
         buffer[0] += ` ${key}="`
         buffer.unshift('"', v)
       } else if (typeof v === 'function') {
-        if (!key.startsWith('on') && key !== 'ref') {
+        if (!key.startsWith('on')) {
           throw new Error(`Invalid prop '${key}' of type 'function' supplied to '${tag}'.`)
         }
         // maybe event handler for client components, just ignore in server components

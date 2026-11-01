@@ -482,6 +482,34 @@ describe('render to string', () => {
       expect(template.toString()).toBe('<div>Content</div>')
     })
 
+    it('should ignore an object ref', () => {
+      const ref = { current: null }
+      const template = (
+        <a ref={ref} href='/'>
+          x
+        </a>
+      )
+      expect(template.toString()).toBe('<a href="/">x</a>')
+    })
+
+    it('should ignore a null ref', () => {
+      const template = (
+        <a ref={null} href='/'>
+          x
+        </a>
+      )
+      expect(template.toString()).toBe('<a href="/">x</a>')
+    })
+
+    it('should ignore a function ref along with other attributes', () => {
+      const template = (
+        <a ref={() => {}} href='/'>
+          x
+        </a>
+      )
+      expect(template.toString()).toBe('<a href="/">x</a>')
+    })
+
     it('should raise an error if used in other props', () => {
       const onClick = () => {}
       const template = <button data-handler={onClick}>Click</button>
